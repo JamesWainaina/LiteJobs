@@ -8,6 +8,7 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDropDownOpen, setIsDropdownOpen] = useState(false);
 
   const navigate = useNavigate();
   const auth = getAuth(app);
@@ -16,24 +17,56 @@ const Navbar = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const handleLogout = async () => {
+      try{
+          await signOut(auth);
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          navigate("/login");
+      }catch(error){
+          console.log("Logout error:",error);
+      }
+  };
+
+  const handleDropdownToggle = () => {
+       setIsDropdownOpen(!isDropDownOpen);
+   };
+
+  // Fetch user data from the backend
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      console.log("Current user from onAthStateChanged:", currentUser);
       setUser(currentUser);
+      setLoading(true);
+
+      if (currentUser) {
+        try {
+          const response = await fetch(`/user/${currentUser.email}`);
+          
+          if (!response.ok){
+              throw new Error(`Error: Server responded with status ${response.status}`);
+          }
+            //check if the content-type is JSON before parsing
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')){
+                throw new Error("Recieved non-json response");
+            }
+
+          const data = await response.json();
+          if (response.ok) {
+            setUser({ ...currentUser, ...data }); // merge Firebase user and backend user data
+          } else {
+            console.error("Error fetching user data: ", data.message);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      }
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, [auth]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
 
   const navItems = [
     { path: "/", title: "Start a search" },
@@ -43,28 +76,21 @@ const Navbar = () => {
   ];
 
   return (
-    <header className='max-w-screen-2xl container mx-auto xl:px-24 px-4'>
-      <nav className='flex justify-between items-center py-6'>
-        <a href="/" className='flex items-center gap-2 text-2xl'>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="29"
-            height="30"
-            viewBox="0 0 29 30"
-            fill="none"
-          >
+    <header className="max-w-screen-2xl container mx-auto xl:px-24 px-4">
+      <nav className="flex justify-between items-center py-6">
+        <a href="/" className="flex items-center gap-2 text-2xl">
+          <svg xmlns="http://www.w3.org/2000/svg" width="29" height="30" viewBox="0 0 29 30" fill="none">
             <circle cx="12.0143" cy="12.5143" r="12.0143" fill="#3575E2" fillOpacity="0.4" />
             <circle cx="16.9857" cy="17.4857" r="12.0143" fill="#3575E2" />
           </svg>
-          <span> Job Portal</span>
+          <span>Job Portal</span>
         </a>
-
-        <ul className='hidden md:flex gap-12'>
+        <ul className="hidden md:flex gap-12">
           {navItems.map(({ path, title }) => (
-            <li key={path} className='text-base text-primary'>
+            <li key={path} className="text-base text-primary">
               <NavLink
                 to={path}
-                className={({ isActive }) => isActive ? "active" : ""}
+                className={({ isActive }) => (isActive ? "active" : "")}
               >
                 {title}
               </NavLink>
@@ -72,65 +98,68 @@ const Navbar = () => {
           ))}
         </ul>
 
-        {/* Auth buttons or user profile */}
-        <div className='text-base text-primary font-medium space-x-5 hidden lg:flex items-center'>
+        {/* Auth buttons or user Profile */}
+        <div className="text-base text-primary font-medium space-x-5 hidden lg:flex items-center">
           {loading ? (
             <span>Loading...</span>
           ) : user ? (
             <>
-              <img
-                src={user.photoURL || '/default-avatar.png'}
-                alt={user.displayName}
-                className='w-10 h-10 rounded-full'
-              />
-              <span>{user.displayName}</span>
-              <button onClick={handleLogout} className='py-2 px-5 border rounded bg-blue text-white'>
-                Logout
-              </button>
+              <div className="relative">
+                <img
+                  src={user.profilePic || "/default-avatar.png"}
+                  alt={user.displayName}
+                  className="w-10 h-10 rounded-full cursor-pointer"
+                  onClick={handleDropdownToggle}
+                />
+                {isDropDownOpen && (
+                  <div className="absolute right-0 mt-2 bg-white text-black rounded shadow-md w-40 p-2">
+                    <Link to="/profile" className="block px-4 py-2 text-sm">Profile</Link>
+                    <button onClick={handleLogout} className="block px-4 py-2 text-sm w-full text-left">
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
               <Link to="/login" className="py-2 px-5 border rounded">Login</Link>
-              <Link to="/sign up" className='py-2 px-5 border rounded bg-blue text-white'>Sign Up</Link>
+              <Link to="/sign-up" className="py-2 px-5 border rounded bg-blue text-white">Sign Up</Link>
             </>
           )}
         </div>
-
-        {/* Mobile menu */}
-        <div className='md:hidden block'>
+        
+        {/* Mobile Menu */}
+        <div className="md:hidden block">
           <button onClick={handleMenuToggle}>
-            {isMenuOpen ? <FaXmark className='w-5 h-5 text-primary' /> :
-             <FaBarsStaggered className='w-5 h-5 text-primary' />}
+            {isMenuOpen ? <FaXmark className="w-5 h-5 text-primary" /> : <FaBarsStaggered className="w-5 h-5 text-primary" />}
           </button>
         </div>
       </nav>
 
       {/* Mobile navItems */}
-      <div className={`px-4 bg-black py-5 rounded-sm ${isMenuOpen ? "" : "hidden"}`}>
+      <div className={`px-4 bg-black py-5 rounded-sm ${isMenuOpen ? "block" : "hidden"}`}>
         <ul>
           {navItems.map(({ path, title }) => (
-            <li key={path} className='text-base text-white py-1'>
-              <NavLink
-                to={path}
-                className={({ isActive }) => isActive ? "active" : ""}
-              >
+            <li key={path} className="text-base text-white py-1">
+              <NavLink to={path} className={({ isActive }) => (isActive ? "active" : "")}>
                 {title}
               </NavLink>
             </li>
           ))}
           {loading ? (
-            <li className='text-white py-1'>Loading...</li>
+            <li className="text-white py-1">Loading...</li>
           ) : user ? (
             <>
-              <li className='text-white py-1'>
+              <li className="text-white py-1">
                 <Link to="/profile">Profile</Link>
               </li>
-              <li className='text-white py-1'>
+              <li className="text-white py-1">
                 <button onClick={handleLogout}>Logout</button>
               </li>
             </>
           ) : (
-            <li className='text-white py-1'>
+            <li className="text-white py-1">
               <Link to="/login">Login</Link>
             </li>
           )}
@@ -141,3 +170,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+

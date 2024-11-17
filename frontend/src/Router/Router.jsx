@@ -8,6 +8,7 @@ import UpdateJob from "../Pages/UpdateJob";
 import Login from "../component/Login";
 import JobDetails from "../Pages/JobDetails";
 import Register from "../component/Register";
+import Profile from "../Pages/Profile";
 
 const router = createBrowserRouter([
   {
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
         path: "/home",
         element: <Home />,
       },
+      {
+          path: "/profile",
+          element: <Profile />
+      }
     ],
   },
 ]);

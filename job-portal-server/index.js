@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+// Middleware to parse incoming JSON requests
+app.use(express.json());
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const port = process.env.PORT || 3000;
@@ -9,7 +11,7 @@ const admin = require('firebase-admin');
 const multer = require('multer'); // Import multer
 const path = require('path');
 
-const serviceAccount = require('./config/job-portal-demo-8414e-firebase-adminsdk-dwr9w-862fd7ed01.json');
+const serviceAccount = require("./config/job-portal-demo-8414e-firebase-adminsdk-dwr9w-dcb3e9226d.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   storageBucket: 'job-portal-demo-8414e.appspot.com' // Update this to match your actual bucket name
@@ -112,6 +114,33 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ message: 'Error registering user', error: error.message });
   }
 });
+
+
+// get user data
+app.get("/user/:email", async( req, res) => {
+    const { email } = req.params;
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+    try{
+        // search for the user in the database using the email
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: " User with that email does not exist"});
+        }
+
+        // return user data 
+        res.status(200).json({
+            email: user.email,
+            username: user.username,
+            profilePic: user.profilePic || "",
+        });
+    }catch (error) {
+        console.error("Error geting user Data",error);
+        res.status(500).json({ message: "Error getting user data", error: error.message});
+    } 
+});
+
 
 
 // Login request
